@@ -17,7 +17,7 @@ from scipy.spatial import Voronoi
 
 # ---------- tweakables ----------
 SEED              = 42
-ISLAND_MIN_KM2    = 50_000     # keep UK=244 k, drop Japan=378 k? set lower if you want them
+ISLAND_MIN_KM2    = 8_000     # keep UK=244 k, drop Japan=378 k? set lower if you want them
 N_SEEDS           = 5_000
 LLOYD_ITER        = 2
 MAX_SEG_LEN       = 0.20       # ° before we insert extra vertices
@@ -115,6 +115,28 @@ def curvy(poly):
 
 cells=[curvy(c) for c in cells]
 
+# After warping edges, clip again to the landmass to ensure no segment spills across the coastline
+reclipped_cells = []
+for cell in cells:
+    # Ensure geometry validity before attempting costly operations
+    if not cell.is_valid:
+        cell = cell.buffer(0)
+
+    try:
+        clipped = cell.intersection(land).buffer(0)  # buffer(0) fixes potential topology errors
+    except TopologicalError:
+        # Skip problematic geometries that still fail after cleaning
+        continue
+
+    if clipped.is_empty:
+        continue
+    if clipped.geom_type == "Polygon":
+        reclipped_cells.append(clipped)
+    elif clipped.geom_type == "MultiPolygon":
+        reclipped_cells.extend([p for p in clipped.geoms if p.area > 0])
+
+cells = reclipped_cells  # replace with coast‐compliant versions
+
 # 6. merge slivers -------------------------------------------------------
 MERGE_PASSES = 5
 print(f"Starting merge process for up to {MERGE_PASSES} passes.")
@@ -137,17 +159,19 @@ def safe_union(source_idx: int, target_idx: int) -> bool:
     except TopologicalError:
         return False
 
+# Compute a fixed average cell area once, and keep the threshold constant across all merge passes
+avg_area_fixed = sum(c.area for c in cells) / len(cells)
+threshold = avg_area_fixed * SLIVER_FACTOR
+print(f"Fixed average cell area: {avg_area_fixed:.4f} → merge threshold (fixed): {threshold:.4f}")
+
 for i_pass in range(MERGE_PASSES):
     print(f"\n--- Merge pass {i_pass + 1}/{MERGE_PASSES} ---")
-    avg_area = sum(c.area for c in cells) / len(cells)
-    threshold = avg_area * SLIVER_FACTOR
     small_cells = [idx for idx, c in enumerate(cells) if c.area < threshold]
 
     if not small_cells:
         print("No small cells left – merge complete.")
         break
 
-    print(f"Average cell area: {avg_area:.4f} → merge threshold: {threshold:.4f}")
     print(f"Small cells to process this pass: {len(small_cells)}")
 
     removed: set[int] = set()
