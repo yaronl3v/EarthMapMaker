@@ -27,7 +27,7 @@ def build_spatial_index(polys: list[Polygon | MultiPolygon]):
 # ---------- tweakables ----------
 SEED              = 42
 ISLAND_MIN_KM2    = 8_000     # keep UK=244 k, drop Japan=378 k? set lower if you want them
-N_SEEDS           = 20_000
+N_SEEDS           = 60_000
 LLOYD_ITER        = 0            # 0 → keep more irregular seed layout
 MAX_SEG_LEN       = 0.20         # ° before we insert extra vertices
 MAX_OFFSET        = 0.08         # ° max border wiggle
@@ -338,11 +338,26 @@ avg_area_after = sum(p.area for p in cells_cleanup) / len(cells_cleanup)
 cleanup_threshold = avg_area_after * SLIVER_FACTOR2
 print(f"Average area after funny grouping: {avg_area_after:.4f} → cleanup threshold: {cleanup_threshold:.4f}")
 
+# Build spatial index once for this cleanup phase (much faster than full scans)
+cleanup_tree, cleanup_id_map = build_spatial_index(cells_cleanup)
+
 removed: set[int] = set()
 
 def touch_indices(i: int) -> list[int]:
+    """Return indices of polygons touching cell *i* and not yet *removed*."""
     tgt = cells_cleanup[i]
-    return [j for j, other in enumerate(cells_cleanup) if j != i and j not in removed and tgt.touches(other)]
+    cand_geoms = cleanup_tree.query(tgt)
+    idxs: list[int] = []
+    for g in cand_geoms:
+        if isinstance(g, (int, np.integer)):
+            j = int(g)
+        else:
+            j = cleanup_id_map.get(g.wkb)
+        if j is None or j == i or j in removed:
+            continue
+        if tgt.touches(cells_cleanup[j]):
+            idxs.append(j)
+    return idxs
 
 for idx, poly in enumerate(cells_cleanup):
     if idx in removed:
