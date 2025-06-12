@@ -1,27 +1,34 @@
 # EarthMapMaker
 
-A Python tool that generates Earth maps with equal-sized polygons, creating clean geometric shapes without weird distortions and returning GeoJSON output.
+A Python toolkit for creating detailed, coastline-aware fantasy world maps. The primary script, **`generate_map_fantasy_optimized.py`**, carves the Earth's landmass into thousands of visually pleasing Voronoi regions and outputs GeoJSON.
 
 ## What it does
 
-This project creates a world map divided into equal-sized polygons that cover the entire Earth's surface. Unlike traditional map projections that can create distorted shapes, this tool generates uniform geometric cells that maintain consistent size and shape across the globe. The output is a clean GeoJSON file that can be used for data visualization, geographic analysis, or any application requiring standardized geographic regions.
+The main generator (`generate_map_fantasy_optimized.py`) samples up to 60 000 seed points over land, applies multi-pass merging, edge warping, and rigorous sliver cleanup to build a polygon mosaic that:
 
-## Features
+- Respects real coastlines – no cell spills into the sea
+- Retains geographic quirks by dropping tiny islands below a configurable size
+- Produces natural-looking, slightly irregular borders with optional curvature
+- Removes micro-slivers and isolated specks for a tidy final layer
+- Writes standard GeoJSON ready for any GIS or web-mapping stack
 
-- **Equal-sized polygons**: All map cells have the same area, ensuring fair geographic representation
-- **No weird shapes**: Clean, geometric polygons without projection distortions
-- **GeoJSON output**: Standard format compatible with most mapping libraries and GIS tools
-- **Full Earth coverage**: Complete coverage of the planet's surface
-- **Easy to use**: Simple Python script with minimal dependencies
+## Features (fantasy generator)
 
-### Advanced generator (`generate_map_equal_merge.py`)
+- **High seed density**: 60 k seeds → fine-grained regional detail
+- **Curvy or straight edges**: Toggle border warping via `USE_CURVES`
+- **Smart sliver merging**: Two-phase merge with size thresholds and spatial indexes
+- **Funny group merging**: Randomised neighbour unions create organic region shapes
+- **Efficient spatial indexing**: STRtree accelerates neighbour look-ups
+- **Isolated-island pruning**: Final pass drops tiny standalone polygons
 
-In addition to the equal-area generator above, the project includes an alternative script that focuses on visual variety and performance:
+### Alternative generators
 
-- **Smart polygon merging**: Deterministic neighbour merges create natural-looking regions without manual tuning
-- **Efficient spatial indexing**: Uses STRtree indexes for lightning-fast neighbour and touch queries even with thousands of cells
-- **Accurate coastline clipping**: All borders are clipped to the real coastline, guaranteeing that no geometry spills into the sea
-- **Zero sliver leftovers**: Aggressive sliver removal passes ensure tiny polygons are merged away, leaving a clean dataset
+The project also ships two simpler generators for specific needs:
+
+| Script | Purpose |
+| ------ | ------- |
+| `generate_map_eqaul_shapes_round.py` | Creates a perfectly uniform equal-area grid – ideal for statistical aggregation |
+| `generate_map_equal_merge.py` | Builds variable-size cells with deterministic neighbour merges and fewer curves |
 
 ## Setup
 
@@ -47,9 +54,13 @@ In addition to the equal-area generator above, the project includes an alternati
 
 ## Running the project
 
-After setting up the environment and installing the dependencies, choose one of the generator scripts:
+After installing dependencies, pick a generator script:
 
-- **Equal-sized polygons**
+- **Fantasy optimized map** (recommended)
+  ```bash
+  python generate_map_fantasy_optimized.py
+  ```
+- **Uniform equal-area grid**
   ```bash
   python generate_map_eqaul_shapes_round.py
   ```
@@ -59,9 +70,6 @@ After setting up the environment and installing the dependencies, choose one of 
   ```
 
 Each script writes a `world_cells.geojson` file in the project root.
-
-- The **equal-sized** mode produces a perfectly uniform grid ideal for statistical analysis.
-- The **smart merged** mode produces variable-size but aesthetically pleasing polygons that hug coastlines closely and contain no micro-slivers.
 
 ## Output
 
