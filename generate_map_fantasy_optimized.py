@@ -382,6 +382,47 @@ for poly in final:
 final = clean_final
 print(f"After coastline clip: {len(final)} polygons remain.")
 
+# 11. prune isolated tiny polygons ------------------------------------
+print("\nPruning isolated tiny polygons …")
+
+if final:  # guard against empty list
+    avg_area_final = sum(p.area for p in final) / len(final)
+    island_threshold = avg_area_final * SLIVER_FACTOR2  # reuse secondary sliver factor
+    print(f"Average area after coastline clip: {avg_area_final:.4f} → island drop threshold: {island_threshold:.4f}")
+
+    # Build spatial index for neighbour queries
+    iso_tree, iso_id_map = build_spatial_index(final)
+
+    kept: list[Polygon | MultiPolygon] = []
+    dropped = 0
+
+    for idx, poly in enumerate(final):
+        # Check if *poly* touches any other polygon
+        neighbours_geoms = iso_tree.query(poly)
+        touches_any = False
+        for g in neighbours_geoms:
+            if isinstance(g, (int, np.integer)):
+                j = int(g)
+            else:
+                j = iso_id_map.get(g.wkb)
+            if j is None or j == idx:
+                continue
+            if poly.touches(final[j]):
+                touches_any = True
+                break
+
+        # Drop if isolated AND smaller than threshold
+        if (not touches_any) and (poly.area < island_threshold):
+            dropped += 1
+            continue
+
+        kept.append(poly)
+
+    final = kept
+    print(f"Dropped {dropped} isolated small polygons.")
+else:
+    print("No polygons left to prune.")
+
 # 9. save ---------------------------------------------------------------
 json_path=pathlib.Path(OUT)
 json_path.write_text(json.dumps({
