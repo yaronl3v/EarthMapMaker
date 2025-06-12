@@ -14,6 +14,15 @@ This project creates a world map divided into equal-sized polygons that cover th
 - **Full Earth coverage**: Complete coverage of the planet's surface
 - **Easy to use**: Simple Python script with minimal dependencies
 
+### Advanced generator (`generate_map_equal_merge.py`)
+
+In addition to the equal-area generator above, the project includes an alternative script that focuses on visual variety and performance:
+
+- **Smart polygon merging**: Deterministic neighbour merges create natural-looking regions without manual tuning
+- **Efficient spatial indexing**: Uses STRtree indexes for lightning-fast neighbour and touch queries even with thousands of cells
+- **Accurate coastline clipping**: All borders are clipped to the real coastline, guaranteeing that no geometry spills into the sea
+- **Zero sliver leftovers**: Aggressive sliver removal passes ensure tiny polygons are merged away, leaving a clean dataset
+
 ## Setup
 
 1.  **Create a virtual environment:**
@@ -38,13 +47,21 @@ This project creates a world map divided into equal-sized polygons that cover th
 
 ## Running the project
 
-After setting up the environment and installing the dependencies, you can run the main script:
+After setting up the environment and installing the dependencies, choose one of the generator scripts:
 
-```bash
-python generate_map.py
-```
+- **Equal-sized polygons**
+  ```bash
+  python generate_map_eqaul_shapes_round.py
+  ```
+- **Smart merged polygons**
+  ```bash
+  python generate_map_equal_merge.py
+  ```
 
-This will generate a `world_cells.geojson` file containing the equal-sized polygon grid covering the entire Earth.
+Each script writes a `world_cells.geojson` file in the project root.
+
+- The **equal-sized** mode produces a perfectly uniform grid ideal for statistical analysis.
+- The **smart merged** mode produces variable-size but aesthetically pleasing polygons that hug coastlines closely and contain no micro-slivers.
 
 ## Output
 
