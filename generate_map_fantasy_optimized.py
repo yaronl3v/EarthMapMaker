@@ -32,7 +32,8 @@ LLOYD_ITER        = 0            # 0 → keep more irregular seed layout
 MAX_SEG_LEN       = 0.20         # ° before we insert extra vertices
 MAX_OFFSET        = 0.08         # ° max border wiggle
 USE_CURVES        = False        # toggle edge warping on/off
-SLIVER_FACTOR     = 0.3          # merge cells smaller than avg*factor
+SLIVER_FACTOR     = 0.3          # merge cells smaller than avg*factor before starting merging
+SLIVER_FACTOR2    = 0.5          # merge cells smaller than avg*factor in the final step
 OUT               = "world_cells.geojson"
 GROUP_MIN         = 3            # min polygons per funny group
 GROUP_MAX         = 6            # max polygons per funny group
@@ -334,7 +335,7 @@ print("\nFinal sliver cleanup …")
 
 cells_cleanup = final  # work on a mutable reference
 avg_area_after = sum(p.area for p in cells_cleanup) / len(cells_cleanup)
-cleanup_threshold = avg_area_after * SLIVER_FACTOR
+cleanup_threshold = avg_area_after * SLIVER_FACTOR2
 print(f"Average area after funny grouping: {avg_area_after:.4f} → cleanup threshold: {cleanup_threshold:.4f}")
 
 removed: set[int] = set()
@@ -389,15 +390,3 @@ json_path.write_text(json.dumps({
 }))
 print(f"Saved {len(final)} polygons after merge → {OUT}")
 
-"""
-Adjust:
-
-What you want	Parameter(s)
-Keep UK & Japan	lower ISLAND_MIN_KM2
-More / fewer cells	change N_SEEDS
-Straighter / wigglier borders	tweak MAX_SEG_LEN, MAX_OFFSET
-Merge more small cells	raise SLIVER_FACTOR
-Flatter cell sizes	raise LLOYD_ITER
-
-That's everything—use, modify, repeat.
-""" 
